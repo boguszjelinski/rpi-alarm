@@ -1,3 +1,25 @@
+#!/usr/bin/env python
+'''
+This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+'''
+__author__ = "Bogusz Jelinski"
+__license__ = "GPL"
+__version__ = "1.0.1"
+__maintainer__ = "Bogusz Jelinski"
+__email__ = "bogusz.jelinski@gmail.com"
+__status__ = "Production"
+
 import serial
 import time
 import os
@@ -21,7 +43,6 @@ gpio.setcfg(red_led, gpio.OUTPUT) # red led
 gpio.setcfg(pir_io, gpio.INPUT) # PIR
 gpio.setcfg(pir2_io, gpio.INPUT) # 
 gpio.setcfg(switch_io, gpio.INPUT)
-#gpio.setup(switch_io, gpio.INPUT, pull_up_down=gpio.PUD_UP)
 
 rfid_lst = []
 email = 'bogusz.jelinski@gmail.com'
@@ -41,8 +62,9 @@ def log_activity (str):
 def send_email(str):
    global email
    global msg
-   os.system ('streamer -c /dev/video0 -s 640x480 -o camdump.jpeg')
-   os.system ('streamer -c /dev/video1 -s 640x480 -o camdump2.jpeg')
+    # you may use any video dump utility you want 
+   os.system ('streamer -c /dev/video0 -s 640x480 -o camdump.jpeg > /dev/null')
+   os.system ('streamer -c /dev/video1 -s 640x480 -o camdump2.jpeg > /dev/null')
    os.system ('mail -s "'+str+'" -t '+email+' -A camdump.jpeg -A camdump2.jpeg < '+ msg)
 
 def watch_loop ():
@@ -53,18 +75,19 @@ def watch_loop ():
   log_activity("Starting survailance ...")
   t1 = time.time()
   while True:
+        # try to read from RFID reader
         try:
             sr = ser.read(12)
             s = sr.decode('utf8')
             if bad_tries <= max_tries and len(s) != 0:
                sl = s[1:11] #exclude start x0A and stop x0D bytes
-               if sl in rfid_lst:
+               if sl in rfid_lst: # this list is read from rfid.txt
                    alarm_on = 0
                    log_activity ("Alarm disarmed")
                    blink (green_led,4)
-                   ser.close()
+                   ser.close()  # keeping the serial always open was a source of troubles
                    break # quit the 'alarm_on' loop
-               else:
+               else: # it is not friendly RFID tag/badge
                    bad_tries = bad_tries+1
                    if bad_tries > max_tries:
                       send_email('Exceeded number of tries')
@@ -77,6 +100,7 @@ def watch_loop ():
             # take a photo, send email here !!!!
             send_email('Alarm')
             blink (red_led,1)
+            time.sleep(2)
         time.sleep(0.01)  # give the processor some rest for context switching 
         t2 = time.time()
         if t2-t1>10: #   10 seconds between blinks
@@ -86,6 +110,7 @@ def watch_loop ():
 def standby_loop ():
     global alarm_on
     t1 = time.time()
+    # just wait for the button to be pressed
     while True:
         input_state = gpio.input(switch_io)
         if input_state == 0: # pressed; pullup resistor config
@@ -93,7 +118,7 @@ def standby_loop ():
            for num in range(0,alarm_startup):  # give some time to leave the house
                blink (green_led,0.5)
                time.sleep(0.5)
-           return
+           return # leave the standby loop
         time.sleep(0.01)   
         t2 = time.time()
         if t2-t1>10: #   10 seconds between blinks
@@ -110,8 +135,8 @@ def read_cfg():
           rfid_lst.append(line[0:10])
           print(line)
        f.close()
-  else:
-    f = open('rfid.txt', 'w')
+  else: # no file or empty -> learning mode
+    f = open(rfid_nrs, 'w')
     ser = serial.Serial('/dev/ttyS1', 9600, timeout=1)
     while True:
        sr = ser.read(12)
@@ -122,6 +147,7 @@ def read_cfg():
                f.write(sl+'\n')
                rfid_lst.append(sl)
            blink (green_led,2)
+        # but check if not the end of learning -> button press
        input_state = gpio.input(switch_io)
        if input_state == 0: # pressed; pullup resistor config
             blink (red_led,2)
@@ -133,7 +159,7 @@ def read_cfg():
     f.close()
             
 try:
-  read_cfg()
+  read_cfg() # read RFID tags
   while True:
     if (alarm_on):
       watch_loop()
