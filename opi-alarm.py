@@ -162,7 +162,7 @@ try:
     while True:
         if (alarm_on):
             watch_loop()
-        else: # the part while alarm state is OFF
+        else: # the part while the alarm state is OFF - alarm has been switched off in watch_loop()
             standby_loop()
     log_activity("closing...")
 except Exception as e:
