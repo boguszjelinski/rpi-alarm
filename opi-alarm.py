@@ -15,7 +15,7 @@ This program is free software: you can redistribute it and/or modify
 '''
 __author__ = "Bogusz Jelinski"
 __license__ = "GPL"
-__version__ = "1.0.1"
+__version__ = "1.0.2"
 __maintainer__ = "Bogusz Jelinski"
 __email__ = "bogusz.jelinski@gmail.com"
 __status__ = "Production"
