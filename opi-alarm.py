@@ -15,7 +15,7 @@ This program is free software: you can redistribute it and/or modify
 '''
 __author__ = "Bogusz Jelinski"
 __license__ = "GPL"
-__version__ = "1.0.2"
+__version__ = "1.0.1"
 __maintainer__ = "Bogusz Jelinski"
 __email__ = "bogusz.jelinski@gmail.com"
 __status__ = "Production"
@@ -24,6 +24,7 @@ import serial
 import time
 import os
 import os.path
+import cv2
 from pyA20.gpio import gpio
 from pyA20.gpio import port
 
@@ -57,14 +58,22 @@ def blink (led, tme):
 def log_activity (str):
     print (time.ctime() + ": "+ str)
 
+def take_picture (device):
+    dev = str(device)
+    camera = cv2.VideoCapture(device)
+    return_value, image = camera.read()
+    cv2.imwrite('foto'+ dev +'.png', image)
+    del(camera)
+    os.system ('convert foto'+dev+'.png -quality 70 foto'+dev+'.jpg  > /dev/null')
+
 def send_email(str):
     global email
     global msg
     # you may use any video dump utility you want 
     os.system ('modprobe -r vfe_v4l2 && sleep 1 && modprobe vfe_v4l2')
-    os.system ('streamer -c /dev/video0 -s 640x480 -o camdump.jpeg  > /dev/null')
-    os.system ('streamer -c /dev/video1 -s 640x480 -o camdump2.jpeg > /dev/null')
-    os.system ('mail -s "'+str+'" -t '+email+' -A camdump.jpeg -A camdump2.jpeg < '+ msg)
+    take_picture (0)
+    take_picture (1)
+    os.system ('mail -s "'+str+'" -t '+email+' -A foto0.jpg -A foto1.jpg < '+ msg)
 
 def watch_loop ():
     global alarm_on
@@ -162,7 +171,7 @@ try:
     while True:
         if (alarm_on):
             watch_loop()
-        else: #  the part while the alarm state is OFF - alarm has been switched off in watch_loop()
+        else: # the part while alarm state is OFF
             standby_loop()
     log_activity("closing...")
 except Exception as e:
